@@ -80,9 +80,7 @@ Submission Links
 
  GitHub Repo: https://github.com/Golixco/lolixco-agent
 
- Kaggle Notebook: [Link once ready]
 
 Built with ❤️ by a passionate gamer, anime fan, and builder using Gemini tips, Hugging Face tools, and pure Python.
 
-                               -Rohan Sonu Bablani
-
+Author: Rohan Sonu Bablani
