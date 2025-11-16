@@ -1,6 +1,6 @@
-#  Lolixco — Entertainment Buddy AI Agent
+#  Lolixco (Entertainment Buddy AI Agent)
 
-**Kaggle × Google Agents Intensive — Capstone Project (Freestyle Track)**  
+**Kaggle × Google 5 Day Agents Intensive Course — Capstone Project (Freestyle Track)**  
  A friendly conversational agent that chats about Valorant, anime, movies, series & gaming culture.
 <img width="1024" height="1024" alt="Lolixco Agent Logo Gemini" src="https://github.com/user-attachments/assets/92289680-69b4-4f91-a81f-56152c447fe9" />
 
