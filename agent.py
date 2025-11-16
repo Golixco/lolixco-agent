@@ -4,7 +4,7 @@ Lolixco - Entertainment Buddy AI Agent (simple local version)
 
 How it works:
 - Small static knowledge base for quick factual answers (Valorant, anime, movies).
-- If KB doesn't match, it uses a small conversational model (DialoGPT-small) via HuggingFace transformers.
+- If KB doesn't match, it uses a small conversational model (GoogleGemma) via HuggingFace transformers.
 - Keeps short-term conversation memory (in-memory) and writes logs to ./logs/conversations.txt
 
 Run:
@@ -36,13 +36,16 @@ AGENT_NAME = "Lolixco"
 LOG_DIR = "logs"
 CONV_LOG = os.path.join(LOG_DIR, "conversations.txt")
 MAX_HISTORY = 6  # keep last N turns (user+bot pairs) to feed into model
-MODEL_NAME = "microsoft/DialoGPT-small"  # small model that runs locally reasonably
+MODEL_NAME = "google/gemma-2b-it"  # small model that runs locally reasonably
 
 SYSTEM_PROMPT = (
-    f"You are {AGENT_NAME}, a friendly entertainment buddy. "
-    "You chat casually about games (especially Valorant), movies, series, and anime. "
-    "Be helpful, friendly, and avoid spoilers unless the user asks for them."
+    f"You are {AGENT_NAME}, a friendly, concise entertainment buddy. "
+    "Only answer about: Valorant (agents, maps, roles), gaming, anime, movies and series. "
+    "If the user asks factual questions (maps, agents, movie names), answer briefly and accurately. "
+    "If unsure, say you don't know and suggest how to clarify. Keep replies short (1-4 sentences). "
+    "Avoid long fictional scenes or unrelated stories. Avoid spoilers unless explicitly asked."
 )
+
 
 ########################
 # Simple knowledge base
@@ -60,24 +63,38 @@ knowledge_base = {
     ),
     "raze": "Raze is an explosive-focused duelist in Valorant known for grenades and space control.",
     "duelist": "Duelists are frag-first agents in Valorant whose role is to secure kills and create space.",
-    "valorant maps": "Valorant maps include Bind, Haven, Split, Ascent, Icebox, Breeze, Fracture, and more.",
-    "anime": "Anime is Japanese animation covering a huge range of genres — action, romance, slice-of-life, etc.",
     "attack on titan": "Attack on Titan (Shingeki no Kyojin) is a dark fantasy anime known for its twists and large-scale story.",
     "one punch man": "One Punch Man is a comedic action anime about an overpowered hero named Saitama.",
-    "movies": "Movies are a storytelling medium — you can ask for recommendations by genre, mood, or era.",
-    "recommend": "Tell me what you like (genre, tone, examples) and I will recommend games, anime, or movies."
+    "recommend": "Tell me what you like (genre, tone, examples) and I will recommend games, anime, or movies.",
+
+    "bind": "Bind is a Valorant map with two bomb sites (A and B), no mid area, known for teleporters and tight chokepoints.",
+    "split": "Split is a Valorant map with vertical play, ropes and tight mid control, popular for site executes.",
+    "ascent": "Ascent is a Valorant map with open mid area and two sites; controlling mid is crucial.",
+    "jawan": "Jawan is a 2023 Indian action-thriller film directed by Atlee starring Shah Rukh Khan.",
+    "avengers endgame": "Avengers: Endgame is a 2019 superhero film concluding the Infinity Saga in the MCU.",
+    "spiderman": "Spider-Man refers to several films about the Marvel superhero; specify which (Homecoming, No Way Home, etc.) for details."
 }
+
 
 ########################
 # Helpers: KB match & logging
 ########################
+import re
+
 def find_in_kb(text: str):
-    text = text.lower()
-    # exact phrase matching or substring matching
-    for key, value in knowledge_base.items():
-        if key in text:
-            return value
-    return None
+    text_low = text.lower()
+
+    # Sort keys by length (longest first) so specific ones win
+    keys_sorted = sorted(knowledge_base.keys(), key=len, reverse=True)
+
+    for key in keys_sorted:
+        # match whole word or phrase
+        pattern = r'\b' + re.escape(key) + r'\b'
+        if re.search(pattern, text_low):
+            return knowledge_base[key], key
+
+    return None, None
+
 
 def ensure_log_dir():
     if not os.path.exists(LOG_DIR):
@@ -89,42 +106,85 @@ def log_conversation(entry: dict):
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 ########################
-# Model loading (DialoGPT-small)
+# Model loading (GoogleGemma2ti)
 ########################
 def load_model_and_tokenizer(model_name=MODEL_NAME):
-    print(f"Loading model {model_name} (this may take a minute)...")
+    print(f"Loading model {model_name} (this may take a moment)...")
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    # Try to use GPU if available
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        device_map="auto"
+    )
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
     print(f"Model loaded on {device}.")
     return model, tokenizer, device
+
+
+
+
 
 ########################
 # Generate reply with model (using limited history)
 ########################
 def generate_model_reply(model, tokenizer, device, chat_history_ids, user_input):
-    # Encode the new user input and append to chat history
-    new_user_input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors="pt").to(device)
-    if chat_history_ids is None:
-        bot_input_ids = new_user_input_ids
-    else:
-        bot_input_ids = torch.cat([chat_history_ids, new_user_input_ids], dim=-1)
-    # Generate a response
-    chat_history_ids = model.generate(
-        bot_input_ids,
-        max_length=bot_input_ids.shape[-1] + 60,
-        pad_token_id=tokenizer.eos_token_id,
-        no_repeat_ngram_size=3,
-        do_sample=True,
-        top_k=50,
-        top_p=0.95,
-        temperature=0.75,
-    )
-    # decode only the newly generated tokens
-    reply = tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
-    return chat_history_ids, reply
+    """
+    Gemma-2B-IT correct chat flow:
+    - Prepend system instructions as first user message
+    - Insert an empty assistant message to ensure roles alternate
+    - Then the real user message
+    - Use tokenizer.apply_chat_template(...) to let tokenizer format prompt
+    - Use deterministic generation (do_sample=False) for stable short replies
+    """
+    try:
+        # Build messages ensuring roles alternate: user -> assistant -> user
+        messages = [
+            {"role": "user", "content": SYSTEM_PROMPT},   # simulated system
+            {"role": "assistant", "content": ""},         # empty assistant to alternate roles
+            {"role": "user", "content": user_input}
+        ]
+
+        # Build tokenized prompt (Gemma helper)
+        prompt_tensor = tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt"
+        ).to(device)
+
+        prompt_len = prompt_tensor.shape[-1]
+
+        # Generate deterministically (stable & concise)
+        outputs = model.generate(
+            prompt_tensor,
+            max_new_tokens=100,
+            do_sample=False,   # deterministic
+            # keep other sampling params out to avoid warnings
+        )
+
+        # outputs is a tensor (1, seq_len). extract only newly generated part
+        gen_ids = outputs[0, prompt_len:]
+        reply = tokenizer.decode(gen_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True).strip()
+
+        # Trim to 2 short sentences max
+        if len(reply.split(".")) > 2:
+            parts = reply.split(".")
+            reply = ".".join(parts[:2]).strip() + "."
+
+        # If reply is empty, ask for clarification instead of hallucinating
+        if not reply:
+            return None, "Sorry — I don't have a confident answer. Can you rephrase?"
+
+        return None, reply
+
+    except Exception as e:
+        return None, f"(Error generating reply: {type(e).__name__}: {e})"
+
+
+
 
 ########################
 # Conversation loop
@@ -173,15 +233,18 @@ def run_console_agent():
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         log_conversation({"timestamp": now, "role": "user", "text": user_input})
 
-        # 1) Try quick KB match
-        kb_answer = find_in_kb(user_input)
+        # 1) Try quick KB match (returns kb_answer + matched_key)
+        kb_answer, matched_key = find_in_kb(user_input)
         if kb_answer:
             print(f"\n{AGENT_NAME}: {kb_answer}")
-            log_conversation({"timestamp": now, "role": "assistant", "source": "kb", "text": kb_answer})
-            history_pairs.append((user_input, kb_answer))
-            if len(history_pairs) > MAX_HISTORY:
-                history_pairs = history_pairs[-MAX_HISTORY:]
+            log_conversation({
+                "timestamp": now,
+                "role": "assistant",
+                "source": f"kb:{matched_key}",
+                "text": kb_answer
+            })
             continue
+
 
         # 2) If no KB answer, use the model
         try:
@@ -203,3 +266,7 @@ def run_console_agent():
 
 if __name__ == "__main__":
     run_console_agent()
+
+
+
+
