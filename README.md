@@ -1,20 +1,20 @@
-# 🎮 Lolixco — Entertainment Buddy AI Agent
+#  Lolixco — Entertainment Buddy AI Agent
 
-**Kaggle × Google Agents Intensive — Capstone (Freestyle Track)**  
-🚀 A friendly conversational agent that chats about Valorant, anime, movies, series & gaming culture.
+**Kaggle × Google Agents Intensive — Capstone Project (Freestyle Track)**  
+ A friendly conversational agent that chats about Valorant, anime, movies, series & gaming culture.
 <img width="1024" height="1024" alt="Lolixco Agent Logo Gemini" src="https://github.com/user-attachments/assets/92289680-69b4-4f91-a81f-56152c447fe9" />
 
 
 
 ---
 
-## 🧠 Problem Statement
+##  Problem Statement
 
 Entertainment fans crave quick, fun, and helpful conversations about their favorite games, anime, and movies — without spoilers, unnecessary tangents, or needing to search online. Current agents are either too generic or too technical.
 
 ---
 
-## 💡 Solution Overview
+##  Solution Overview
 
 **Lolixco** acts like a buddy — not just a bot. It combines:
 - A hand-crafted knowledge base for precision
@@ -33,7 +33,7 @@ Lolixco’s architecture is simple and local-first. It checks for KB matches fir
 
 ---
 
-## 🗂️ Project Structure
+##  Project Structure
 lolixco-agent/
 ├── agent.py # Main console app
 ├── requirements.txt # Dependencies
@@ -75,7 +75,7 @@ python agent.py
 - `clear` — clear short-term context  
 - `help` — show command tips
 
-```
+---
 Submission Links
 
  GitHub Repo: https://github.com/Golixco/lolixco-agent
@@ -83,4 +83,6 @@ Submission Links
  Kaggle Notebook: [Link once ready]
 
 Built with ❤️ by a passionate gamer, anime fan, and builder using Gemini tips, Hugging Face tools, and pure Python.
+
+                               -Rohan Sonu Bablani
 
