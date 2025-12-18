@@ -34,13 +34,18 @@ Lolixco’s architecture is simple and local-first. It checks for KB matches fir
 ---
 
 ##  Project Structure
-lolixco-agent/
-├── agent.py # Main console app
-├── requirements.txt # Dependencies
-├── logs/ # Session logs saved here
-│ └── conversations.txt
-├── README.md # This file
-└── <assets>.png # Logo + architecture visuals
+lollipop-agent/
+│
+├── agent.py                # Main application entry point
+├── requirements.txt        # Python dependency list
+├── README.md               # Project documentation
+├── logo.png                # Project logo / architecture visuals
+│
+├── logs/                   # Session logs generated during runtime
+│   └── *.log
+│
+└── conversations.txt       # Stored conversation history
+
 
 
 
@@ -78,9 +83,13 @@ python agent.py
 ---
 Submission Links
 
- GitHub Repo: https://github.com/Golixco/lolixco-agent
+ YouTube: https://youtu.be/B7hiLO2SY9M?si=_cDL88N6yT5H6yRp
+ Kaggle: https://www.kaggle.com/rohansonubablani
 
 
 Built with ❤️ by a passionate gamer, anime fan, and builder using Gemini tips, Hugging Face tools, and pure Python.
 
 Author: Rohan Sonu Bablani
+<img width="4800" height="2960" alt="5-Day AI Agents Intensive Course with Google (1)" src="https://github.com/user-attachments/assets/6b454373-3b55-489b-b15c-adbdf3da2d1d" />
+
+
